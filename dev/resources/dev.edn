@@ -1,0 +1,16 @@
+{:duct.server/figwheel
+ {:builds
+  [{:id "dev",
+    :figwheel {:on-jsload cljs.user/reset}
+    :source-paths ["dev/src" "src"],
+    :build-options
+    {:main cljs.user
+     :output-to
+     "target/resources/graphql_client/public/js/main.js",
+     :output-dir
+     "target/resources/graphql_client/public/js",
+     :asset-path "/js",
+     :closure-defines {goog.DEBUG true},
+     :verbose false,
+     :preloads [devtools.preload],
+     :optimizations :none}}]}}
