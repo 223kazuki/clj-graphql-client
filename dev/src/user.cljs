@@ -6,7 +6,9 @@
 (println "dev mode")
 
 (defn dev-conf []
-  {})
+  {:graphql-client.client.module/re-graph
+   {:ws-url   "ws://localhost:8080/graphql-ws"
+    :http-url "http://localhost:8080/graphql"}})
 
 (swap! config #(meta-merge % (dev-conf)))
 

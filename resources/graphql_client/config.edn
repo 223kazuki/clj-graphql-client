@@ -1,11 +1,27 @@
 {:duct.profile/base
  {:duct.core/project-ns graphql-client
 
-  :duct.router/ataraxy
-  {:routes {[:get "/"] [:graphql-client.handler/index]}}
+  :duct.handler/root
+  {:middleware [#ig/ref :graphql-client.middleware/authorization]}
 
-  :graphql-client.handler/index
-  {}}
+  :duct.router/ataraxy
+  {:routes {[:get "/login"] [:graphql-client.handler.auth/login]
+            [:get "/logout"] [:graphql-client.handler.auth/logout]
+            [:get "/cb"] [:graphql-client.handler.auth/cb]
+            [:get "/"] [:graphql-client.handler/index]}}
+
+  :graphql-client.middleware/authorization
+  {:provider-url #duct/env ["PROVIDER_URL" Str]
+   :redirect-url #duct/env ["REDIRECT_URL" Str]
+   :client-id #duct/env ["CLIENT_ID" Str]}
+
+  :graphql-client.handler.auth/login
+  {:provider-url #duct/env ["PROVIDER_URL" Str]
+   :redirect-url #duct/env ["REDIRECT_URL" Str]
+   :client-id #duct/env ["CLIENT_ID" Str]}
+  :graphql-client.handler.auth/logout {}
+  :graphql-client.handler.auth/cb {}
+  :graphql-client.handler/index {}}
 
  :duct.profile/dev   #duct/include "dev"
  :duct.profile/local #duct/include "local"

@@ -14,6 +14,7 @@
 
                  [reagent "0.8.1"]
                  [re-frame "0.10.6"]
+                 [reagent-utils "0.3.2"]
                  [kibu/pushy "0.3.8"]
                  [bidi "2.1.4"]
                  [soda-ash "0.83.0" :exclusions [[cljsjs/react]]]

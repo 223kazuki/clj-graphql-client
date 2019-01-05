@@ -13,4 +13,14 @@
      :closure-defines {goog.DEBUG true},
      :verbose false,
      :preloads [devtools.preload],
-     :optimizations :none}}]}}
+     :optimizations :none}}]}
+
+ :graphql-client.middleware/authorization
+ {:provider-url "http://localhost:8080"
+  :redirect-url "http://localhost:3000/cb"
+  :client-id "fe6af238-20ca-4682-a50c-630092edddc9"}
+
+ :graphql-client.handler.auth/login
+ {:provider-url "http://localhost:8080"
+  :redirect-url "http://localhost:3000/cb"
+  :client-id "fe6af238-20ca-4682-a50c-630092edddc9"}}
