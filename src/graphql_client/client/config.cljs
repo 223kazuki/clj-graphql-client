@@ -2,7 +2,7 @@
   (:require [integrant.core :as ig]
             [graphql-client.client.module.app]
             [graphql-client.client.module.router]
-            [graphql-client.client.module.re-graph]))
+            [graphql-client.client.module.graphql]))
 
 (defn system-conf []
   {:graphql-client.client.module/router
@@ -10,10 +10,10 @@
                   "about" :about}]}
 
    :graphql-client.client.module/graphql
-   {;; :ws-url                  "wss://foo.io/graphql-ws"
+   {:ws-url                  "wss://foo.io/graphql-ws"
     :http-url                "http://bar.io/graphql"
-    ;; :ws-reconnect-timeout    2000
-    ;; :resume-subscriptions?   true
+    :ws-reconnect-timeout    2000
+    :resume-subscriptions?   true
     :connection-init-payload {}}
 
    :graphql-client.client.module/app

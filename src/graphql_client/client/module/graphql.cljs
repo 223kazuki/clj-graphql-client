@@ -49,9 +49,10 @@
    k [re-frame/trim-v]
    (fn-traced
     [{:keys [:db]} [options token]]
-    (let [options (assoc options
-                         :http-parameters {:with-credentials? false
-                                           :headers {"Authorization" (str "Bearer " token)}})]
+    (let [options (-> options
+                      (assoc
+                       :http-parameters {:with-credentials? false
+                                         :headers {"Authorization" (str "Bearer " token)}}))]
       (js/console.log (pr-str options))
       {:db (merge db initial-db)
        :dispatch [::re-graph/init options]}))))
@@ -80,22 +81,33 @@
     [{:keys [db]} [path]]
     {:db (dissoc-in db path)})))
 
+;; Effects
+(defmulti reg-fx identity)
+(defmethod reg-fx :re-graph.internals/send-ws [k]
+  (re-frame/reg-fx
+   k (fn [[websocket payload]]
+       (let [payload (assoc-in payload [:payload :token] (cookies/get-raw "token"))]
+         (.send websocket (js/JSON.stringify (clj->js payload)))))))
+
 ;; Init
 (defmethod ig/init-key :graphql-client.client.module/graphql
   [k options]
   (js/console.log (str "Initializing " k))
   (let [token (cookies/get-raw "token")
         subs (->> reg-sub methods (map key))
-        events (->> reg-event methods (map key))]
+        events (->> reg-event methods (map key))
+        effects (->> reg-fx methods (map key))]
     (->> subs (map reg-sub) doall)
     (->> events (map reg-event) doall)
+    (->> effects (map reg-fx) doall)
     (re-frame/dispatch-sync [::init options token])
-    {:subs subs :events events}))
+    {:subs subs :events events :effects effects}))
 
 ;; Halt
 (defmethod ig/halt-key! :graphql-client.client.module/graphql
-  [k {:keys [:subs :events]}]
+  [k {:keys [:subs :events :effects]}]
   (js/console.log (str "Halting " k))
   (re-frame/dispatch-sync [::halt])
   (->> subs (map re-frame/clear-sub) doall)
-  (->> events (map re-frame/clear-event) doall))
+  (->> events (map re-frame/clear-event) doall)
+  (->> effects (map re-frame/clear-fx) doall))

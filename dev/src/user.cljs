@@ -7,8 +7,7 @@
 
 (defn dev-conf []
   {:graphql-client.client.module/graphql
-   {;;:ws-url   "ws://localhost:8080/graphql-ws"
-    :ws-url nil
+   {:ws-url   "ws://localhost:8080/graphql-ws"
     :http-url "http://localhost:8080/graphql"}})
 
 (swap! config #(meta-merge % (dev-conf)))
