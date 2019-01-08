@@ -5,20 +5,17 @@
             [cljsjs.react-transition-group]
             [soda-ash.core :as sa]
             [graphql-client.client.module.router :as router]
-            [graphql-client.client.module.re-graph :as re-graph]))
+            [graphql-client.client.module.graphql :as graphql]))
 
 (defn home-panel []
-  (let [droids (re-frame/subscribe [::re-graph/subscription
-                                    "{ hero {id}}"])]
+  (let [hero (re-frame/subscribe [::graphql/query
+                                  {:queries [[:hero {:episode :EMPIRE} [:id :name]]]} {}
+                                  [::hero]])]
     (fn []
-      (println @droids)
       [:div
        [sa/Segment
         [:h2 "Home"]
-        [sa/Button {:on-click #(re-frame/dispatch [:re-graph.core/query
-                                                   "{hero (episode: EMPIRE) {id, name}}" {}
-                                                   [::re-graph/on-thing]])}
-         "Query"]]])))
+        [:span (str @hero)]]])))
 
 (defn about-panel []
   [:div [sa/Segment "About"]])

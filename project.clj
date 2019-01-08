@@ -19,7 +19,8 @@
                  [bidi "2.1.4"]
                  [soda-ash "0.83.0" :exclusions [[cljsjs/react]]]
                  [cljsjs/react-transition-group "2.4.0-0"]
-                 [re-graph "0.1.7"]]
+                 [re-graph "0.1.7"]
+                 [district0x/graphql-query "1.0.5"]]
   :plugins [[duct/lein-duct "0.11.0-beta4"]]
   :main ^:skip-aot graphql-client.main
   :resource-paths ["resources" "target/resources"]

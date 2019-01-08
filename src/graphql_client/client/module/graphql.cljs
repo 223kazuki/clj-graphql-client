@@ -1,22 +1,40 @@
-(ns graphql-client.client.module.re-graph
+(ns graphql-client.client.module.graphql
   (:require [integrant.core :as ig]
             [reagent.core :as reagent]
             [re-frame.core :as re-frame]
             [day8.re-frame.tracing :refer-macros [fn-traced]]
             [re-graph.core :as re-graph]
-            [reagent.cookies :as cookies]))
+            [reagent.cookies :as cookies]
+            [graphql-query.core :refer [graphql-query]]))
+
+(defn- dissoc-in
+  [m [k & ks]]
+  (if ks
+    (if-let [nextmap (get m k)]
+      (let [newmap (dissoc-in nextmap ks)]
+        (if (seq newmap)
+          (assoc m k newmap)
+          (dissoc m k)))
+      m)
+    (dissoc m k)))
 
 ;; Initial DB
 (def initial-db {})
 
 ;; Subscriptions
 (defmulti reg-sub identity)
+(defmethod reg-sub ::query [k]
+  (re-frame/reg-sub-raw
+   k (fn [app-db [_ query args path]]
+       (re-frame/dispatch [:re-graph.core/query
+                           (graphql-query query) args [::on-query-success path]])
+       (reagent.ratom/make-reaction
+        #(get-in @app-db path)
+        :on-dispose #(re-frame/dispatch [::clean-db path])))))
 (defmethod reg-sub ::subscription [k]
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args]]
        (let [subscription-id (keyword (pr-str query))]
-         #_ (re-frame/dispatch [::re-graph/query query args
-                                [::on-thing subscription-id]])
          (re-frame/dispatch [::re-graph/subscribe
                              subscription-id query args
                              [::on-thing subscription-id]])
@@ -31,13 +49,12 @@
    k [re-frame/trim-v]
    (fn-traced
     [{:keys [:db]} [options token]]
-    (if token
-      (let [options (assoc options
-                           :http-parameters {:with-credentials? true
-                                             :oauth-token token})]
-        {:db (merge db initial-db)
-         :dispatch [::re-graph/init options]})
-      {:redirect "/login"}))))
+    (let [options (assoc options
+                         :http-parameters {:with-credentials? false
+                                           :headers {"Authorization" (str "Bearer " token)}})]
+      (js/console.log (pr-str options))
+      {:db (merge db initial-db)
+       :dispatch [::re-graph/init options]}))))
 (defmethod reg-event ::halt [k]
   (re-frame/reg-event-db
    k [re-frame/trim-v]
@@ -46,16 +63,25 @@
     (->> db
          (filter #(not= (namespace (key %)) (namespace ::x)))
          (into {})))))
-(defmethod reg-event ::on-thing [k]
-  (re-frame/reg-event-db
+(defmethod reg-event ::on-query-success [k]
+  (re-frame/reg-event-fx
    k [re-frame/trim-v]
    (fn-traced
-    [db [{:keys [data errors] :as payload} subscription-id]]
-    (println subscription-id payload)
-    db)))
+    [{:keys [db]} [path {:keys [data errors] :as payload}]]
+    (if errors
+      (case (get-in (first errors) [:extensions :status])
+        403 {:redirect "/login"}
+        {})
+      {:db (assoc-in db path data)}))))
+(defmethod reg-event ::clean-db [k]
+  (re-frame/reg-event-fx
+   k [re-frame/trim-v]
+   (fn-traced
+    [{:keys [db]} [path]]
+    {:db (dissoc-in db path)})))
 
 ;; Init
-(defmethod ig/init-key :graphql-client.client.module/re-graph
+(defmethod ig/init-key :graphql-client.client.module/graphql
   [k options]
   (js/console.log (str "Initializing " k))
   (let [token (cookies/get-raw "token")
@@ -67,7 +93,7 @@
     {:subs subs :events events}))
 
 ;; Halt
-(defmethod ig/halt-key! :graphql-client.client.module/re-graph
+(defmethod ig/halt-key! :graphql-client.client.module/graphql
   [k {:keys [:subs :events]}]
   (js/console.log (str "Halting " k))
   (re-frame/dispatch-sync [::halt])
