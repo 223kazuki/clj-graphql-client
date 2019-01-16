@@ -8,14 +8,14 @@
             [graphql-client.client.module.graphql :as graphql]))
 
 (defn home-panel []
-  (let [hero (re-frame/subscribe [::graphql/query
-                                  {:queries [[:hero {:episode :EMPIRE} [:id :name]]]} {}
-                                  [::hero]])]
+  (let [rikishi (re-frame/subscribe [::graphql/query
+                                     {:queries [[:rikishi {:id 1} [:id :shikona]]]} {}
+                                     [::rikishi]])]
     (fn []
       [:div
        [sa/Segment
         [:h2 "Home"]
-        [:span (str @hero)]]])))
+        [:span (str @rikishi)]]])))
 
 (defn about-panel []
   [:div [sa/Segment "About"]])
