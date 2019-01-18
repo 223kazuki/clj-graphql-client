@@ -26,7 +26,7 @@
 (defmethod reg-sub ::query [k]
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args path]]
-       (re-frame/dispatch [:re-graph.core/query
+       (re-frame/dispatch [::re-graph/query
                            (graphql-query query) args [::on-query-success path]])
        (reagent.ratom/make-reaction
         #(get-in @app-db path)
@@ -81,6 +81,34 @@
     [{:keys [db]} [path]]
     {:db (dissoc-in db path)})))
 
+(defn- on-ws-message [instance-name]
+  (fn [m]
+    (let [data (js/JSON.parse (aget m "data"))]
+      (condp = (aget data "type")
+        "data"
+        (re-frame/dispatch [:re-graph.internals/on-ws-data instance-name (aget data "id") (js->clj (aget data "payload") :keywordize-keys true)])
+
+        "complete"
+        (re-frame/dispatch [:re-graph.internals/on-ws-complete instance-name (aget data "id")])
+
+        "error"
+        (js/console.warn (str "GraphQL error for " instance-name " - " (aget data "id") ": " (aget data "payload" "message")))
+
+        (js/console.debug "Ignoring graphql-ws event " instance-name " - " (aget data "type"))))))
+
+(defn- on-open [instance-name ws]
+  (fn [e]
+    (re-frame/dispatch [:re-graph.internals/on-ws-open instance-name ws])))
+
+(defn- on-close [instance-name]
+  (fn [e]
+    (re-frame/dispatch [:re-graph.internals/on-ws-close instance-name])))
+
+(defn- on-error [instance-name]
+  (fn [e]
+    (js/console.warn "GraphQL websocket error" instance-name e)
+    (set! js/location.href "/login")))
+
 ;; Effects
 (defmulti reg-fx identity)
 (defmethod reg-fx :re-graph.internals/send-ws [k]
@@ -88,6 +116,14 @@
    k (fn [[websocket payload]]
        (let [payload (assoc-in payload [:payload :token] (cookies/get-raw "token"))]
          (.send websocket (js/JSON.stringify (clj->js payload)))))))
+(defmethod reg-fx :re-graph.internals/connect-ws [k]
+  (re-frame/reg-fx
+   k (fn [[instance-name ws-url]]
+       (let [ws (js/WebSocket. ws-url "graphql-ws")]
+         (aset ws "onmessage" (on-ws-message instance-name))
+         (aset ws "onopen" (on-open instance-name ws))
+         (aset ws "onclose" (on-close instance-name))
+         (aset ws "onerror" (on-error instance-name))))))
 
 ;; Init
 (defmethod ig/init-key :graphql-client.client.module/graphql

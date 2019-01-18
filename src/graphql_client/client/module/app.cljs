@@ -37,7 +37,6 @@
 (defmethod reg-fx :redirect [k]
   (re-frame/reg-fx
    k (fn [path]
-       (println path)
        (set! js/location.href path))))
 
 ;; Init
