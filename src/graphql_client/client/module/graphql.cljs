@@ -49,10 +49,11 @@
    k [re-frame/trim-v]
    (fn-traced
     [{:keys [:db]} [options token]]
-    (let [options (-> options
-                      (assoc
-                       :http-parameters {:with-credentials? false
-                                         :headers {"Authorization" (str "Bearer " token)}}))]
+    (let [options (cond-> options
+                    (:ws-url options) (update-in [:ws-url] str "?token=" token)
+                    true (assoc
+                          :http-parameters {:with-credentials? false
+                                            :headers {"Authorization" (str "Bearer " token)}}))]
       (js/console.log (pr-str options))
       {:db (merge db initial-db)
        :dispatch [::re-graph/init options]}))))
@@ -111,11 +112,6 @@
 
 ;; Effects
 (defmulti reg-fx identity)
-(defmethod reg-fx :re-graph.internals/send-ws [k]
-  (re-frame/reg-fx
-   k (fn [[websocket payload]]
-       (let [payload (assoc-in payload [:payload :token] (cookies/get-raw "token"))]
-         (.send websocket (js/JSON.stringify (clj->js payload)))))))
 (defmethod reg-fx :re-graph.internals/connect-ws [k]
   (re-frame/reg-fx
    k (fn [[instance-name ws-url]]
