@@ -7,15 +7,26 @@
             [graphql-client.client.module.router :as router]
             [graphql-client.client.module.graphql :as graphql]))
 
-(defn home-panel []
+(defn _home-panel []
   (let [rikishi (re-frame/subscribe [::graphql/query
-                                     {:queries [[:rikishi {:id 1} [:id :shikona]]]} {}
-                                     [::rikishi]])]
+                                     {:queries [[:rikishi {:id 1} [:id :shikona]]
+                                                [:sumobeya {:id 2} [:name]]]} {}
+                                     [::rikishi]])
+        torikumis (re-frame/subscribe [::graphql/subscription
+                                       {:queries [[:torikumis {:num 3} [:id :kimarite]]]} {}
+                                       [::torikumis]])]
     (fn []
-      [:div
-       [sa/Segment
-        [:h2 "Home"]
-        [:span (str @rikishi)]]])))
+      [:<>
+       [:p (str @rikishi)]
+       [:p (str @torikumis)]])))
+
+(defn home-panel []
+  (let [websocket-ready? (re-frame/subscribe [::graphql/websocket-ready?])]
+    (fn []
+      [sa/Segment
+       [:h2 "Home"]
+       (when @websocket-ready?
+         [_home-panel])])))
 
 (defn about-panel []
   [:div [sa/Segment "About"]])

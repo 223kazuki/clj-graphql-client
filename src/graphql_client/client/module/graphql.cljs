@@ -23,6 +23,8 @@
 
 ;; Subscriptions
 (defmulti reg-sub identity)
+(defmethod reg-sub ::websocket-ready? [k]
+  (re-frame/reg-sub k #(get-in % [:re-graph :re-graph.internals/default :websocket :ready?])))
 (defmethod reg-sub ::query [k]
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args path]]
@@ -33,13 +35,13 @@
         :on-dispose #(re-frame/dispatch [::clean-db path])))))
 (defmethod reg-sub ::subscription [k]
   (re-frame/reg-sub-raw
-   k (fn [app-db [_ query args]]
+   k (fn [app-db [_ query args path]]
        (let [subscription-id (keyword (pr-str query))]
          (re-frame/dispatch [::re-graph/subscribe
-                             subscription-id query args
-                             [::on-thing subscription-id]])
+                             subscription-id (graphql-query query) args
+                             [::on-thing path]])
          (reagent.ratom/make-reaction
-          #(get-in @app-db [subscription-id])
+          #(get-in @app-db path)
           :on-dispose #(re-frame/dispatch [::re-graph/unsubscribe subscription-id]))))))
 
 ;; Events
@@ -54,18 +56,28 @@
                     true (assoc
                           :http-parameters {:with-credentials? false
                                             :headers {"Authorization" (str "Bearer " token)}}))]
-      (js/console.log (pr-str options))
       {:db (merge db initial-db)
        :dispatch [::re-graph/init options]}))))
 (defmethod reg-event ::halt [k]
-  (re-frame/reg-event-db
+  (re-frame/reg-event-fx
    k [re-frame/trim-v]
    (fn-traced
-    [db _]
-    (->> db
-         (filter #(not= (namespace (key %)) (namespace ::x)))
-         (into {})))))
+    [{:keys [:db]} _]
+    {:db (->> db
+              (filter #(not= (namespace (key %)) (namespace ::x)))
+              (into {}))
+     :dispatch [::re-graph/destroy]})))
 (defmethod reg-event ::on-query-success [k]
+  (re-frame/reg-event-fx
+   k [re-frame/trim-v]
+   (fn-traced
+    [{:keys [db]} [path {:keys [data errors] :as payload}]]
+    (if errors
+      (case (get-in (first errors) [:extensions :status])
+        403 {:redirect "/login"}
+        {})
+      {:db (assoc-in db path data)}))))
+(defmethod reg-event ::on-thing [k]
   (re-frame/reg-event-fx
    k [re-frame/trim-v]
    (fn-traced
