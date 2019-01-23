@@ -7,18 +7,33 @@
             [graphql-client.client.module.router :as router]
             [graphql-client.client.module.graphql :as graphql]))
 
+#_(defn _home-panel []
+    (let [rikishi (re-frame/subscribe [::graphql/query
+                                       {:queries [[:rikishi {:id 1} [:id :shikona]]
+                                                  [:sumobeya {:id 2} [:name]]]} {}
+                                       [::rikishi]])
+          torikumis (re-frame/subscribe [::graphql/subscription
+                                         {:queries [[:torikumis {:num 3} [:id :kimarite]]]} {}
+                                         [::torikumis]])]
+      (fn []
+        [:<>
+         [:p (str @rikishi)]
+         [:p (str @torikumis)]])))
+
 (defn _home-panel []
-  (let [rikishi (re-frame/subscribe [::graphql/query
-                                     {:queries [[:rikishi {:id 1} [:id :shikona]]
-                                                [:sumobeya {:id 2} [:name]]]} {}
-                                     [::rikishi]])
-        torikumis (re-frame/subscribe [::graphql/subscription
-                                       {:queries [[:torikumis {:num 3} [:id :kimarite]]]} {}
-                                       [::torikumis]])]
+  (let [rikishis (re-frame/subscribe [::graphql/query
+                                      `{:queries [[:rikishis {:first 10} [[:edges [[:node [:id :shikona :banduke
+                                                                                           [:sumobeya [:name]]]]]]]]]} {}
+                                      [::rikishis]])]
     (fn []
-      [:<>
-       [:p (str @rikishi)]
-       [:p (str @torikumis)]])))
+      (when @rikishis
+        [sa/Table
+         [sa/TableBody
+          (for [{{:keys [id shikona banduke sumobeya]} :node} (get-in @rikishis [:rikishis :edges])]
+            [sa/TableRow {:key id}
+             [sa/TableCell shikona]
+             [sa/TableCell banduke]
+             [sa/TableCell (:name sumobeya)]])]]))))
 
 (defn home-panel []
   (let [websocket-ready? (re-frame/subscribe [::graphql/websocket-ready?])]
