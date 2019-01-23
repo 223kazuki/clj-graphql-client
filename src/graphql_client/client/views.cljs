@@ -22,18 +22,35 @@
 
 (defn _home-panel []
   (let [rikishis (re-frame/subscribe [::graphql/query
-                                      `{:queries [[:rikishis {:first 10} [[:edges [[:node [:id :shikona :banduke
-                                                                                           [:sumobeya [:name]]]]]]]]]} {}
+                                      {:queries [#_[:favoriteRikishis [:id]]
+                                                 [:rikishis {:first 10}
+                                                  [[:pageInfo [:hasNextPage :endCursor]]
+                                                   [:edges [[:node [:id :shikona :banduke
+                                                                    [:sumobeya [:name]]]]]]]]]}
+                                      {}
                                       [::rikishis]])]
     (fn []
-      (when @rikishis
-        [sa/Table
-         [sa/TableBody
-          (for [{{:keys [id shikona banduke sumobeya]} :node} (get-in @rikishis [:rikishis :edges])]
-            [sa/TableRow {:key id}
-             [sa/TableCell shikona]
-             [sa/TableCell banduke]
-             [sa/TableCell (:name sumobeya)]])]]))))
+      (when-let [{:keys [edges pageInfo]} (:rikishis @rikishis)]
+        (let [{:keys [hasNextPage endCursor]} pageInfo]
+          [sa/Table
+           [sa/TableHeader
+            [sa/TableRow
+             [sa/TableHeaderCell "四股名"]
+             [sa/TableHeaderCell "番付"]
+             [sa/TableHeaderCell "部屋"]]]
+           [sa/Visibility {:as "tbody"
+                           :on-update (fn [_ ctx]
+                                        (let [{:keys [percentagePassed offScreen bottomPassed onScreen width topPassed fits
+                                                      pixelsPassed passing topVisible direction height bottomVisible] :as calc}
+                                              (js->clj (aget ctx "calculations")
+                                                       :keywordize-keys true)]
+                                          (when (and bottomVisible hasNextPage)
+                                            (js/console.log "fetch more!"))))}
+            (for [{{:keys [id shikona banduke sumobeya]} :node} edges]
+              [sa/TableRow {:key id}
+               [sa/TableCell shikona]
+               [sa/TableCell banduke]
+               [sa/TableCell (:name sumobeya)]])]])))))
 
 (defn home-panel []
   (let [websocket-ready? (re-frame/subscribe [::graphql/websocket-ready?])]
