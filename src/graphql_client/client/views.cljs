@@ -26,22 +26,27 @@
                :variables [{:variable/name :$after
                             :variable/type :String}]
                :queries [{:query/data [:favoriteRikishis [:id]]}
-                         {:query/data [:rikishis {:first 10 :after :$after}
+                         {:query/data [:rikishis {:first 20 :after :$after}
                                        [[:pageInfo [:hasNextPage :endCursor]]
                                         [:edges [[:node [:id :shikona :banduke
                                                          [:sumobeya [:name]]]]]]]]}]}
-        rikishis (re-frame/subscribe [::graphql/query query {}
-                                      [::rikishis]])]
+        path [::rikishis]
+        rikishis (re-frame/subscribe [::graphql/sub-query query {}
+                                      path ])]
     (fn []
-      (when-let [{:keys [edges pageInfo]} (:rikishis @rikishis)]
-        (let [{:keys [hasNextPage endCursor]} pageInfo]
-          (println endCursor)
+      (when-let [rikishis @rikishis]
+        (let [favorites (->> (:favoriteRikishis rikishis)
+                             (map :id)
+                             set)
+              {:keys [edges pageInfo]} (:rikishis rikishis)
+              {:keys [hasNextPage endCursor]} pageInfo]
           [sa/Table
            [sa/TableHeader
             [sa/TableRow
              [sa/TableHeaderCell "四股名"]
              [sa/TableHeaderCell "番付"]
-             [sa/TableHeaderCell "部屋"]]]
+             [sa/TableHeaderCell "所属"]
+             [sa/TableHeaderCell]]]
            [sa/Visibility {:as "tbody"
                            :on-update (fn [_ ctx]
                                         (let [{:keys [percentagePassed offScreen bottomPassed onScreen width topPassed fits
@@ -49,20 +54,83 @@
                                               (js->clj (aget ctx "calculations")
                                                        :keywordize-keys true)]
                                           (when (and bottomVisible hasNextPage)
+                                            (re-frame/dispatch [::graphql/fetch-more
+                                                                query path :rikishis])
                                             (js/console.log "fetch more!"))))}
             (for [{{:keys [id shikona banduke sumobeya]} :node} edges]
               [sa/TableRow {:key id}
-               [sa/TableCell shikona]
+               [sa/TableCell [:a {:href (str "/rikishis/" id)} shikona]]
                [sa/TableCell banduke]
-               [sa/TableCell (:name sumobeya)]])]])))))
+               [sa/TableCell (:name sumobeya)]
+               [sa/TableCell
+                (if (favorites id)
+                  [sa/Rating {:icon "star" :rating 1 :max-rating 1
+                              :on-click
+                              #(re-frame/dispatch [::graphql/mutate
+                                                   {:operation {:operation/type :mutation
+                                                                :operation/name "unfavRikishi"}
+                                                    :queries [{:query/data [:unfavRikishi {:rikishiId id}
+                                                                            [:id]]
+                                                               :query/alias :favoriteRikishis}]}
+                                                   {}
+                                                   path])}]
+                  [sa/Rating {:icon "star" :rating 0 :max-rating 1
+                              :on-click
+                              #(re-frame/dispatch [::graphql/mutate
+                                                   {:operation {:operation/type :mutation
+                                                                :operation/name "favRikishi"}
+                                                    :queries [{:query/data [:favRikishi {:rikishiId id}
+                                                                            [:id]]
+                                                               :query/alias :favoriteRikishis}]}
+                                                   {}
+                                                   path])}])]])]])))))
 
 (defn home-panel []
   (let [websocket-ready? (re-frame/subscribe [::graphql/websocket-ready?])]
     (fn []
       [sa/Segment
-       [:h2 "Home"]
+       [:h2 "力士一覧"]
        (when @websocket-ready?
          [_home-panel])])))
+
+(defn _rikishi-panel [{:keys [rikishi-id]}]
+  (let [query {:operation {:operation/type :query
+                           :operation/name :rikishiQuery}
+               :variables [{:variable/name :$id
+                            :variable/type :Int!}]
+               :queries [{:query/data [:rikishi {:id :$id}
+                                       [:id :shikona :banduke :syusshinchi
+                                        [:sumobeya [:name [:rikishis [:id :shikona :banduke]]]]]]}]}
+        rikishi-id (js/parseInt rikishi-id)
+        path [::rikishi]
+        rikishi (re-frame/subscribe [::graphql/sub-query query {:id rikishi-id} path])]
+    (when-let [{:keys [shikona banduke syusshinchi sumobeya]} (:rikishi @rikishi)]
+      (let [{:keys [name rikishis]} sumobeya]
+        [:<>
+         [:h2 [:a {:href "/"} "力士一覧"] " > " shikona]
+         [sa/Table
+          [sa/TableBody
+           [sa/TableRow
+            [sa/TableCell {:width 4}  "番付"]
+            [sa/TableCell banduke]]
+           [sa/TableRow
+            [sa/TableCell "部屋"]
+            [sa/TableCell name]]
+           [sa/TableRow
+            [sa/TableCell "同部屋力士"]
+            [sa/TableCell (->> (for [{:keys [id shikona banduke]} rikishis]
+                                 (when (not= rikishi-id id)
+                                   (str banduke " " shikona)))
+                               (filter some?)
+                               (clojure.string/join ", "))]]]]]))))
+
+(defn rikishi-panel []
+  (let [websocket-ready? (re-frame/subscribe [::graphql/websocket-ready?])
+        route-params (re-frame/subscribe [::router/route-params])]
+    (fn []
+      [sa/Segment
+       (when (and @websocket-ready? @route-params)
+         [_rikishi-panel @route-params])])))
 
 (defn about-panel []
   [:div [sa/Segment "About"]])
@@ -73,6 +141,7 @@
 (defmulti  panels identity)
 (defmethod panels :home-panel [] #'home-panel)
 (defmethod panels :about-panel [] #'about-panel)
+(defmethod panels :rikishi-panel [] #'rikishi-panel)
 (defmethod panels :none [] #'none-panel)
 
 (def transition-group (reagent/adapt-react-class js/ReactTransitionGroup.TransitionGroup))

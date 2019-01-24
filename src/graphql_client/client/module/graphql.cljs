@@ -25,7 +25,7 @@
 (defmulti reg-sub identity)
 (defmethod reg-sub ::websocket-ready? [k]
   (re-frame/reg-sub k #(get-in % [:re-graph :re-graph.internals/default :websocket :ready?])))
-(defmethod reg-sub ::query [k]
+(defmethod reg-sub ::sub-query [k]
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args path]]
        (re-frame/dispatch [::re-graph/query
@@ -33,7 +33,7 @@
        (reagent.ratom/make-reaction
         #(get-in @app-db path)
         :on-dispose #(re-frame/dispatch [::clean-db path])))))
-(defmethod reg-sub ::subscription [k]
+(defmethod reg-sub ::sub-subscription [k]
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args path]]
        (let [subscription-id (keyword (pr-str query))]
@@ -76,7 +76,14 @@
       (case (get-in (first errors) [:extensions :status])
         403 {:redirect "/login"}
         {})
-      {:db (assoc-in db path data)}))))
+      {:db (update-in db path merge data)}))))
+(defmethod reg-event ::mutate [k]
+  (re-frame/reg-event-fx
+   k [re-frame/trim-v]
+   (fn-traced
+    [{:keys [db]} [query args path]]
+    {:dispatch [::re-graph/mutate
+                (graphql-query query) args [::on-query-success path]]})))
 (defmethod reg-event ::on-thing [k]
   (re-frame/reg-event-fx
    k [re-frame/trim-v]
@@ -91,9 +98,25 @@
   (re-frame/reg-event-fx
    k [re-frame/trim-v]
    (fn-traced
-    [{:keys [db]} [query args path]]
-    (println path)
-    {:db db})))
+    [{:keys [db]} [query path name]]
+    (let [{:keys [pageInfo edges]} (get-in db (conj path name))
+          {:keys [hasNextPage endCursor]} pageInfo]
+      (when hasNextPage
+        {:dispatch [::re-graph/query
+                    (graphql-query query) {:after endCursor}
+                    [::on-fetch-more-success edges path name]]})))))
+(defmethod reg-event ::on-fetch-more-success [k]
+  (re-frame/reg-event-fx
+   k [re-frame/trim-v]
+   (fn-traced
+    [{:keys [db]} [before-edges path name {:keys [data errors] :as payload}]]
+    (if errors
+      (case (get-in (first errors) [:extensions :status])
+        403 {:redirect "/login"}
+        {})
+      {:db (-> db
+               (assoc-in path data)
+               (update-in (conj path name :edges) #(concat before-edges %)))}))))
 (defmethod reg-event ::clean-db [k]
   (re-frame/reg-event-fx
    k [re-frame/trim-v]

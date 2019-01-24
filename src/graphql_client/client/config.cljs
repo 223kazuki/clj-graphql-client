@@ -7,6 +7,7 @@
 (defn system-conf []
   {:graphql-client.client.module/router
    {:routes ["/" {""      :home
+                  ["rikishis/" :rikishi-id] :rikishi
                   "about" :about}]}
 
    :graphql-client.client.module/graphql
