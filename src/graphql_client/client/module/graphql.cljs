@@ -87,6 +87,13 @@
         403 {:redirect "/login"}
         {})
       {:db (assoc-in db path data)}))))
+(defmethod reg-event ::fetch-more [k]
+  (re-frame/reg-event-fx
+   k [re-frame/trim-v]
+   (fn-traced
+    [{:keys [db]} [query args path]]
+    (println path)
+    {:db db})))
 (defmethod reg-event ::clean-db [k]
   (re-frame/reg-event-fx
    k [re-frame/trim-v]

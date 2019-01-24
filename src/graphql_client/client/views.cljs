@@ -21,17 +21,21 @@
          [:p (str @torikumis)]])))
 
 (defn _home-panel []
-  (let [rikishis (re-frame/subscribe [::graphql/query
-                                      {:queries [#_[:favoriteRikishis [:id]]
-                                                 [:rikishis {:first 10}
-                                                  [[:pageInfo [:hasNextPage :endCursor]]
-                                                   [:edges [[:node [:id :shikona :banduke
-                                                                    [:sumobeya [:name]]]]]]]]]}
-                                      {}
+  (let [query {:operation {:operation/type :query
+                           :operation/name :rikishisQuery}
+               :variables [{:variable/name :$after
+                            :variable/type :String}]
+               :queries [{:query/data [:favoriteRikishis [:id]]}
+                         {:query/data [:rikishis {:first 10 :after :$after}
+                                       [[:pageInfo [:hasNextPage :endCursor]]
+                                        [:edges [[:node [:id :shikona :banduke
+                                                         [:sumobeya [:name]]]]]]]]}]}
+        rikishis (re-frame/subscribe [::graphql/query query {}
                                       [::rikishis]])]
     (fn []
       (when-let [{:keys [edges pageInfo]} (:rikishis @rikishis)]
         (let [{:keys [hasNextPage endCursor]} pageInfo]
+          (println endCursor)
           [sa/Table
            [sa/TableHeader
             [sa/TableRow
