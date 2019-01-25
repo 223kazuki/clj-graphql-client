@@ -8,7 +8,7 @@
   {:graphql-client.client.module/router
    {:routes ["/" {""      :home
                   ["rikishis/" :rikishi-id] :rikishi
-                  "about" :about}]}
+                  "torikumi" :torikumi}]}
 
    :graphql-client.client.module/graphql
    {:ws-url                  "wss://foo.io/graphql-ws"
