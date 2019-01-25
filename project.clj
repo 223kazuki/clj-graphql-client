@@ -21,7 +21,7 @@
                  [cljsjs/react-transition-group "2.4.0-0"]
                  [re-graph "0.1.7"]
                  [district0x/graphql-query "1.0.5"]]
-  :plugins [[duct/lein-duct "0.11.0"]]
+  :plugins [[duct/lein-duct "0.11.2"]]
   :main ^:skip-aot graphql-client.main
   :resource-paths ["resources" "target/resources"]
   :prep-tasks     ["javac" "compile" ["run" ":duct/compiler"]]
