@@ -1,6 +1,7 @@
 # graphql-client
 
-FIXME: description
+Exmaple cljs graphql client.
+It works with https://github.com/223kazuki/clj-graphql-server.
 
 ## Developing
 
@@ -30,6 +31,9 @@ user=> (dev)
 :loaded
 ```
 
+Then you have to launch clj-graphql-server with 8080 port.
+Please read README of https://github.com/223kazuki/clj-graphql-server.
+
 Run `go` to prep and initiate the system.
 
 ```clojure
@@ -39,6 +43,11 @@ dev=> (go)
 ```
 
 By default this creates a web server at <http://localhost:3000>.
+
+You can login with following information.
+
+* User ID: test@example.com
+* Password: P@ssw0rd
 
 When you make changes to your source files, use `reset` to reload any
 modified files and reset the server. Changes to CSS or ClojureScript
@@ -76,7 +85,3 @@ But you can also run tests through Leiningen.
 ```sh
 lein test
 ```
-
-## Legal
-
-Copyright © 2019 FIXME
